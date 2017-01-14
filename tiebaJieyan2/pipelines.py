@@ -57,72 +57,63 @@ class postsPipeline(object):
     def _conditional_insert(self, tx, item):
         # create record if doesn't exist.
         # all this block run on it's own thread
-        #判断item是都否缺失项目，如果缺失就放弃该项
+        
         sql1 = 'set names utf8mb4'
         tx.execute(sql1)
+		#判断item是都否缺失项目，如果缺失就放弃该项
         try:
-            # if item['post_id'] and item['thread_id']:
-                #判断该帖子是否存在
-                tx.execute("select * from posts where post_id='%s'"%(item['post_id']))
-                result = tx.fetchone()
-                if result:
-                    #避免重复存储
-                    # log.msg("threads_id already stored in db: %s" % item, level=log.WARNING)
-                    #更新帖子信息
-                    args = (item['comment_content'],
-                            item['shebei'],
-                            item['comment_num'],
-                            item['post_id']
-                            )
-                    #sql后面
-                    sql = "UPDATE posts SET comment_content='%s', shebei='%s',comment_num=%d WHERE post_id='%s'" %args
-                    try:
-                        #执行更新操作
-                        tx.execute(sql)
-                    except MySQLdb.OperationalError,e:
-                        loger.error(e)                
-                        loger.error(u'UPDATE failed,OperationalError:%s'%item)
-                    except MySQLdb.ProgrammingError,e:
-                        loger.error(e)
-                        loger.error(u'UPDATE failed,ProgrammingError:%s'%item)
-                    except MySQLdb.DatabaseError,e:
-                        loger.error(e)
-                        loger.error(u'UPDATE failed,DatabaseError:%s'%item)
-                       
+                
+			args = (item['thread_id'],
+					item['post_id'],
+					item['content'],
+					item['author_id'],
+					item['comment_content'],
+					item['shebei'],
+					item['floor_no'],
+					item['post_date'],
+					item['comment_num']
 
-                    log.msg("update item : %s" % item, level=log.WARNING)
+					)
+			sql = "insert into posts(thread_id,post_id,content,author_id,comment_content,shebei,floor_no,post_date,comment_num) VALUES(%s,%s,'%s',%s,'%s','%s','%s','%s',%d)"%args
+			try:
+				#执行插入操作
+				tx.execute(sql)
+				log.msg("Item stored in db: %s" % item, level=log.INFO)
+			except MySQLdb.OperationalError,e:
+				loger.error(e)                
+				loger.error(u'insert failed,OperationalError:%s'%item)
+			except MySQLdb.ProgrammingError,e:
+				loger.error(e)
+				loger.error(u'insert failed,ProgrammingError:%s'%item)
+			except MySQLdb.DatabaseError,e:
+				loger.warning(e)
+				loger.warning(u'insert failed,DatabaseError:%s'%item)
+				#避免重复存储，执行更新操作
+				# log.msg("threads_id already stored in db: %s" % item, level=log.WARNING)
+				#更新帖子信息
+				args = (item['comment_content'],
+						item['shebei'],
+						item['comment_num'],
+						item['post_id']
+						)
+				#sql后面
+				sql2 = "UPDATE posts SET comment_content='%s', shebei='%s',comment_num=%d WHERE post_id='%s'" %args
+				try:
+					#执行更新操作
+					tx.execute(sql2)
+					log.msg("update item : %s" % item, level=log.WARNING)
 
-                else:
-                    args = (item['thread_id'],
-                            item['post_id'],
-                            item['content'],
-                            item['author_id'],
-                            item['comment_content'],
-                            item['shebei'],
-                            item['floor_no'],
-                            item['post_date'],
-                            item['comment_num']
+				except MySQLdb.OperationalError,e:
+					loger.error(e)                
+					loger.error(u'UPDATE failed,OperationalError:%s'%item)
+				except MySQLdb.ProgrammingError,e:
+					loger.error(e)
+					loger.error(u'UPDATE failed,ProgrammingError:%s'%item)
+				except MySQLdb.DatabaseError,e:
+					loger.error(e)
+					loger.error(u'UPDATE failed,DatabaseError:%s'%item)
+						   
 
-                            )
-                    sql = "insert into posts(thread_id,post_id,content,author_id,comment_content,shebei,floor_no,post_date,comment_num) VALUES(%s,%s,'%s',%s,'%s','%s','%s','%s',%d)"%args
-                    try:
-                        #执行更新操作
-                        tx.execute(sql)
-                    except MySQLdb.OperationalError,e:
-                        loger.error(e)                
-                        loger.error(u'insert failed,OperationalError:%s'%item)
-                    except MySQLdb.ProgrammingError,e:
-                        loger.error(e)
-                        loger.error(u'insert failed,ProgrammingError:%s'%item)
-                    except MySQLdb.DatabaseError,e:
-                        loger.error(e)
-                        loger.error(u'insert failed,DatabaseError:%s'%item)
-
-                    log.msg("Item stored in db: %s" % item, level=log.INFO)
-
-            # #未爬去id，删除该item
-            # else:
-            #     raise DropItem(u'missing thread_id:%s'%item)
         except KeyError:
             logger.error('error item:%s'%item)
             DropItem(u'missing thread_id:%s' % item)
@@ -136,56 +127,46 @@ class postsPipeline(object):
         tx.execute(sql1)
         # 判断item是都否缺失项目，如果缺失就放弃该项
         try:
-            # if item['post_id'] and item['thread_id']:
-            # 判断该帖子是否存在
-            tx.execute("select * from user where user_id='%s'" %(item['user_id']))
-            result = tx.fetchone()
-            if result:
-                # 避免重复存储
-                # log.msg("threads_id already stored in db: %s" % item, level=log.WARNING)
-                # 更新帖子信息
-                args = (item['user_name'],
-                        item['user_id'])
-                # sql后面
-                sql = "UPDATE user SET user_name='%s' WHERE user_id='%s'"%args
-                # 执行更新操作
-                try:
-                        #执行更新操作
-                    tx.execute(sql)
-                except MySQLdb.OperationalError,e:
-                    loger.error(e)                
-                    loger.error(u'UPDATE failed,OperationalError:%s'%item)
-                except MySQLdb.ProgrammingError,e:
-                    loger.error(e)
-                    loger.error(u'UPDATE failed,ProgrammingError:%s'%item)
-                except MySQLdb.DatabaseError,e:
-                    loger.error(e)
-                    loger.error(u'UPDATE failed,DatabaseError:%s'%item)     
-                
-                log.msg("update item : %s" % item, level=log.WARNING)
 
-            else:
-                args = (item['user_id'],
-                        item['user_name'])
-                sql = "insert into user(user_id,user_name) VALUES(%s,'%s')" % args
-                try:
-                    #执行更新操作
-                    tx.execute(sql)
-                except MySQLdb.OperationalError,e:
-                    loger.error(e)                
-                    loger.error(u'insert failed,OperationalError:%s'%item)
-                except MySQLdb.ProgrammingError,e:
-                    loger.error(e)
-                    loger.error(u'insert failed,ProgrammingError:%s'%item)
-                except MySQLdb.DatabaseError,e:
-                    loger.error(e)
-                    loger.error(u'insert failed,DatabaseError:%s'%item)
+			args = (item['user_id'],
+					item['user_name'])
+			sql = "insert into user(user_id,user_name) VALUES(%s,'%s')" % args
+			try:
+				#执行插入操作
+				tx.execute(sql)
+				log.msg("Item stored in db: %s" % item, level=log.INFO)
+			except MySQLdb.OperationalError,e:
+				loger.error(e)                
+				loger.error(u'insert failed,OperationalError:%s'%item)
+			except MySQLdb.ProgrammingError,e:
+				loger.error(e)
+				loger.error(u'insert failed,ProgrammingError:%s'%item)
+			except MySQLdb.DatabaseError,e:
+				loger.error(e)
+				loger.error(u'insert failed,DatabaseError:%s'%item)
+				# 避免重复存储
+				# log.msg("threads_id already stored in db: %s" % item, level=log.WARNING)
+				# 更新帖子信息
+				args = (item['user_name'],
+						item['user_id'])
+				# sql后面
+				sql2 = "UPDATE user SET user_name='%s' WHERE user_id='%s'"%args
+				# 执行更新操作
+				try:
+						#执行更新操作
+					tx.execute(sql2)
+					log.msg("update item : %s" % item, level=log.WARNING)
+				except MySQLdb.OperationalError,e:
+					loger.error(e)                
+					loger.error(u'UPDATE failed,OperationalError:%s'%item)
+				except MySQLdb.ProgrammingError,e:
+					loger.error(e)
+					loger.error(u'UPDATE failed,ProgrammingError:%s'%item)
+				except MySQLdb.DatabaseError,e:
+					loger.error(e)
+					loger.error(u'UPDATE failed,DatabaseError:%s'%item)     
+					
 
-                log.msg("Item stored in db: %s" % item, level=log.INFO)
-
-                # #未爬去id，删除该item
-                # else:
-                #     raise DropItem(u'missing thread_id:%s'%item)
         except KeyError:
             logger.error('error item:%s'%item)
             DropItem(u'missing thread_id:%s' % item)
